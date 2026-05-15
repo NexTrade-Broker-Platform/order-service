@@ -1,25 +1,24 @@
-# Multi-stage build for Spring Boot application
 FROM gradle:8.10.2-jdk21 AS build
 
 WORKDIR /app
 
-# Copy source code
-COPY . .
+COPY build.gradle settings.gradle ./
+COPY gradlew ./
+COPY gradle/ gradle/
 
-# Build the application
-RUN gradle clean bootJar --no-daemon
+RUN chmod +x gradlew
+RUN ./gradlew dependencies --no-daemon || true
 
-# Runtime stage
+COPY src/ src/
+
+RUN ./gradlew clean bootJar --no-daemon
+
 FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-# Copy the built JAR from the builder stage
 COPY --from=build /app/build/libs/*.jar app.jar
 
-# Expose port
 EXPOSE 9003
 
-# Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]
-
