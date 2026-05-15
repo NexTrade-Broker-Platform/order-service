@@ -26,24 +26,6 @@ public class InterServiceClient {
     }
 
     /**
-     * Sends a newly created pending order to the external Exchange.
-     *
-     * @param order The order to be sent to the exchange.
-     */
-    public void sendOrderToExchange(Order order) {
-        restTemplate.postForObject("http://exchange-service/api/exchange/orders", order, Void.class);
-    }
-
-    /**
-     * Sends a cancellation request for an existing order to the external Exchange.
-     *
-     * @param orderId The unique identifier of the order to be cancelled.
-     */
-    public void cancelOrderAtExchange(UUID orderId) {
-        restTemplate.delete("http://exchange-service/api/exchange/orders/" + orderId);
-    }
-
-    /**
      * Notifies the Fee Service that a trade has been executed.
      *
      * @param trade The execution record to notify the Fee Service about.
