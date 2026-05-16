@@ -112,6 +112,14 @@ public class TradeService {
     }
 
     /**
+     * Find all trades for a specific user and instrument type ordered chronologically.
+     */
+    @Transactional(readOnly = true)
+    public List<Trade> getTradesByUserAndType(UUID platformUserId, InstrumentType instrumentType) {
+        return tradeRepository.findByPlatformUserIdAndInstrumentTypeOrderByExecutedAtAsc(platformUserId, instrumentType);
+    }
+
+    /**
      * Count all trades for a specific order.
      */
     @Transactional(readOnly = true)
@@ -127,4 +135,3 @@ public class TradeService {
         return countTradesByOrder(orderId) > 0;
     }
 }
-

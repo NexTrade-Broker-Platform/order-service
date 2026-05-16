@@ -3,6 +3,7 @@ package com.lynx.orderservice.controller;
 import com.lynx.orderservice.client.InterServiceClient;
 import com.lynx.orderservice.client.WsOrderClient;
 import com.lynx.orderservice.domain.Order;
+import com.lynx.orderservice.domain.InstrumentType;
 import com.lynx.orderservice.domain.Side;
 import com.lynx.orderservice.domain.Status;
 import com.lynx.orderservice.domain.Trade;
@@ -162,6 +163,16 @@ public class OrderController {
 
         List<Order> orders = orderService.getOrdersByPlatformUser(userId);
         return ResponseEntity.ok(orders);
+    }
+
+    @GetMapping("/trades/user/{userId}")
+    public ResponseEntity<List<Trade>> getUserTrades(
+            @RequestHeader("X-INTERNAL-KEY") String key,
+            @PathVariable UUID userId,
+            @RequestParam InstrumentType instrumentType
+    ) {
+        validateKey(key);
+        return ResponseEntity.ok(tradeService.getTradesByUserAndType(userId, instrumentType));
     }
 
     /**

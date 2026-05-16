@@ -49,6 +49,15 @@ public interface TradeRepository extends JpaRepository<Trade, UUID> {
     List<Trade> findByPlatformUserIdAndInstrumentId(@Param("platformUserId") UUID platformUserId, @Param("instrumentId") String instrumentId);
 
     /**
+     * Find all trades for a specific user and instrument type ordered chronologically.
+     */
+    @Query("SELECT t FROM Trade t WHERE t.platformUserId = :platformUserId AND t.instrumentType = :instrumentType ORDER BY t.executedAt ASC")
+    List<Trade> findByPlatformUserIdAndInstrumentTypeOrderByExecutedAtAsc(
+            @Param("platformUserId") UUID platformUserId,
+            @Param("instrumentType") InstrumentType instrumentType
+    );
+
+    /**
      * Count all trades for a specific order.
      */
     @Query("SELECT COUNT(t) FROM Trade t WHERE t.orderId = :orderId")
