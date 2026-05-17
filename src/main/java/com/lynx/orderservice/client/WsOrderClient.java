@@ -3,6 +3,7 @@ package com.lynx.orderservice.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lynx.orderservice.domain.Order;
+import com.lynx.orderservice.domain.OrderType;
 import com.lynx.orderservice.domain.Status;
 import com.lynx.orderservice.dto.ws.CancelOrderPayload;
 import com.lynx.orderservice.dto.ws.PlaceOrderPayload;
@@ -68,7 +69,7 @@ public class WsOrderClient extends TextWebSocketHandler {
                 .order_type(order.getOrderType())
                 .side(order.getSide())
                 .quantity(order.getQuantity())
-                .limit_price(order.getLimitPrice())
+                .limit_price(order.getOrderType() == OrderType.LIMIT ? order.getLimitPrice() : null)
                 .expires_at(order.getExpiresAt())
                 .build();
 
