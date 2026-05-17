@@ -78,13 +78,17 @@ public class OrderController {
             @RequestBody Order order) {
         validateKey(key);
         if (order.getSide() == Side.BUY) {
+            if (order.getLimitPrice() == null) {
+                log.error("Cannot place BUY order: no price provided for fund reservation");
+                order.setStatus(Status.REJECTED);
+                order.setUpdatedAt(LocalDateTime.now());
+                Order savedOrder = orderService.createOrder(order);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(savedOrder);
+            }
             try {
                 ReserveFundsRequest request = new ReserveFundsRequest();
                 request.setUserId(order.getPlatformUserId());
-                
-                // TODO: in the future the price of the stock will be used from the StockExchange for MARKET orders(it's fetched in the api-gateway)
-                BigDecimal limitPrice = order.getLimitPrice() != null ? order.getLimitPrice() : BigDecimal.ONE;
-                BigDecimal amount = order.getQuantity().multiply(limitPrice);
+                BigDecimal amount = order.getQuantity().multiply(order.getLimitPrice());
                 request.setAmount(amount);
                 request.setCurrency("USD");
                 
@@ -189,8 +193,7 @@ public class OrderController {
             try {
                 ReleaseFundsRequest releaseFundsRequest = new ReleaseFundsRequest();
                 releaseFundsRequest.setUserId(order.getPlatformUserId());
-                BigDecimal limitPrice = order.getLimitPrice() != null ? order.getLimitPrice() : BigDecimal.ONE;
-                BigDecimal amount = order.getQuantity().multiply(limitPrice);
+                BigDecimal amount = order.getQuantity().multiply(order.getLimitPrice());
                 releaseFundsRequest.setAmount(amount);
                 releaseFundsRequest.setCurrency("USD");
 
@@ -342,8 +345,7 @@ public class OrderController {
                 try {
                     ReleaseFundsRequest releaseFundsRequest = new ReleaseFundsRequest();
                     releaseFundsRequest.setUserId(order.getPlatformUserId());
-                    BigDecimal limitPrice = order.getLimitPrice() != null ? order.getLimitPrice() : BigDecimal.ONE;
-                    BigDecimal amount = (order.getQuantity().subtract(order.getFilledQuantity())).multiply(limitPrice);
+                    BigDecimal amount = (order.getQuantity().subtract(order.getFilledQuantity())).multiply(order.getLimitPrice());
                     releaseFundsRequest.setAmount(amount);
                     releaseFundsRequest.setCurrency("USD");
 
