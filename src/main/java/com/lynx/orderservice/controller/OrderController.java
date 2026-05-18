@@ -168,6 +168,15 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
+    @GetMapping("/internal/all")
+    public ResponseEntity<List<Order>> getAllPlatformOrders(
+            @RequestHeader("X-INTERNAL-KEY") String key) {
+        validateKey(key);
+
+        List<Order> orders = orderService.getAllOrders();
+        return ResponseEntity.ok(orders);
+    }
+
     /**
      * Cancels an existing order, updates its local status, and notifies the Exchange.
      *
