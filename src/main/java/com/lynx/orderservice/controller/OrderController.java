@@ -43,6 +43,15 @@ public class OrderController {
     @Value("${internal.api-key}")
     private String internalApiKey;
 
+    @Value("${services.notification.url:http://notification-service:9006}")
+    private String notificationServiceUrl;
+
+    @Value("${services.wallet.url:http://wallet-service:9002}")
+    private String walletServiceUrl;
+
+    @Value("${services.portfolio.url:http://portfolio-service:9004}")
+    private String portfolioServiceUrl;
+
     private void validateKey(String key){
         if (!Objects.equals(internalApiKey, key)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid secret API key");
@@ -95,7 +104,7 @@ public class OrderController {
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("X-INTERNAL-KEY", internalApiKey);
                 HttpEntity<ReserveFundsRequest> entity = new HttpEntity<>(request, headers);
-                restTemplate.postForObject("http://wallet-service:9002/funds/reserve", entity, Void.class);
+                restTemplate.postForObject(walletServiceUrl + "/funds/reserve", entity, Void.class);
             } catch (Exception e) {
                 log.error("Failed to reserve funds for BUY order", e);
                 order.setStatus(Status.REJECTED);
@@ -113,7 +122,7 @@ public class OrderController {
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("X-INTERNAL-KEY", internalApiKey);
                 HttpEntity<ReserveQuantityRequest> entity = new HttpEntity<>(request, headers);
-                restTemplate.postForObject("http://portfolio-service:9004/portfolio/reserve", entity, Void.class);
+                restTemplate.postForObject(portfolioServiceUrl + "/portfolio/reserve", entity, Void.class);
             } catch (Exception e) {
                 log.error("Failed to reserve quantity for SELL order", e);
                 order.setStatus(Status.REJECTED);
@@ -125,11 +134,31 @@ public class OrderController {
 
         order.setStatus(Status.PENDING);
         order.setUpdatedAt(LocalDateTime.now());
-        
+
         Order savedOrder = orderService.createOrder(order);
-        
+
         wsOrderClient.sendOrder(savedOrder);
-        
+
+        try {
+            java.util.Map<String, String> notifBody = java.util.Map.of(
+                    "order_id",         savedOrder.getOrderId().toString(),
+                    "platform_user_id", savedOrder.getPlatformUserId().toString(),
+                    "side",             savedOrder.getSide().name(),
+                    "order_type",       savedOrder.getOrderType().name(),
+                    "instrument_id",    savedOrder.getInstrumentId()
+            );
+            org.springframework.http.HttpHeaders notifHeaders = new org.springframework.http.HttpHeaders();
+            notifHeaders.set("X-INTERNAL-KEY", internalApiKey);
+            notifHeaders.set("Content-Type", "application/json");
+            org.springframework.http.HttpEntity<java.util.Map<String, String>> notifEntity =
+                    new org.springframework.http.HttpEntity<>(notifBody, notifHeaders);
+            restTemplate.postForObject(
+                    notificationServiceUrl + "/internal/orders/placed",
+                    notifEntity, Void.class);
+        } catch (Exception e) {
+            log.warn("Could not notify notification-service of new order {}: {}", savedOrder.getOrderId(), e.getMessage());
+        }
+
         return ResponseEntity.status(HttpStatus.CREATED).body(savedOrder);
     }
 
@@ -209,7 +238,7 @@ public class OrderController {
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("X-INTERNAL-KEY", internalApiKey);
                 HttpEntity<ReleaseFundsRequest> entity = new HttpEntity<>(releaseFundsRequest, headers);
-                restTemplate.postForObject("http://wallet-service:9002/funds/release", entity, Void.class);
+                restTemplate.postForObject(walletServiceUrl + "/funds/release", entity, Void.class);
             } catch (Exception e) {
                 log.error("Failed to release funds for cancelled BUY order", e);
             }
@@ -224,7 +253,7 @@ public class OrderController {
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("X-INTERNAL-KEY", internalApiKey);
                 HttpEntity<ReserveQuantityRequest> entity = new HttpEntity<>(releaseQuantityRequest, headers);
-                restTemplate.postForObject("http://portfolio-service:9004/portfolio/release", entity, Void.class);
+                restTemplate.postForObject(portfolioServiceUrl + "/portfolio/release", entity, Void.class);
             } catch (Exception e) {
                 log.error("Failed to release quantity for cancelled SELL order", e);
             }
@@ -297,7 +326,7 @@ public class OrderController {
                     HttpHeaders headers = new HttpHeaders();
                     headers.set("X-INTERNAL-KEY", internalApiKey);
                     HttpEntity<CaptureFundsRequest> entity = new HttpEntity<>(captureFundsRequest, headers);
-                    restTemplate.postForObject("http://wallet-service:9002/funds/capture", entity, Void.class);
+                    restTemplate.postForObject(walletServiceUrl + "/funds/capture", entity, Void.class);
                 } catch (Exception e) {
                     log.error("Failed to capture funds after BUY fill", e);
                 }
@@ -314,7 +343,7 @@ public class OrderController {
                     HttpHeaders headers = new HttpHeaders();
                     headers.set("X-INTERNAL-KEY", internalApiKey);
                     HttpEntity<AddPositionRequest> entity = new HttpEntity<>(positionRequest, headers);
-                    restTemplate.postForObject("http://portfolio-service:9004/portfolio/add", entity, Void.class);
+                    restTemplate.postForObject(portfolioServiceUrl + "/portfolio/add", entity, Void.class);
                 } catch (Exception e) {
                     log.error("Failed to add position after BUY fill", e);
                 }
@@ -328,7 +357,7 @@ public class OrderController {
                     HttpHeaders headers = new HttpHeaders();
                     headers.set("X-INTERNAL-KEY", internalApiKey);
                     HttpEntity<CaptureQuantityRequest> entity = new HttpEntity<>(captureQuantityRequest, headers);
-                    restTemplate.postForObject("http://portfolio-service:9004/portfolio/capture", entity, Void.class);
+                    restTemplate.postForObject(portfolioServiceUrl + "/portfolio/capture", entity, Void.class);
                 } catch (Exception e) {
                     log.error("Failed to capture quantity after SELL fill", e);
                 }
@@ -344,7 +373,7 @@ public class OrderController {
                     headers.set("X-INTERNAL-KEY", internalApiKey);
                     HttpEntity<DepositRequest> entity = new HttpEntity<>(depositRequest, headers);
                     
-                    restTemplate.postForObject("http://wallet-service:9002/funds/deposit", entity, Void.class);
+                    restTemplate.postForObject(walletServiceUrl + "/funds/deposit", entity, Void.class);
                 } catch (Exception e) {
                     log.error("Failed to deposit proceeds after SELL fill", e);
                 }
@@ -361,7 +390,7 @@ public class OrderController {
                     HttpHeaders headers = new HttpHeaders();
                     headers.set("X-INTERNAL-KEY", internalApiKey);
                     HttpEntity<ReleaseFundsRequest> entity = new HttpEntity<>(releaseFundsRequest, headers);
-                    restTemplate.postForObject("http://wallet-service:9002/funds/release", entity, Void.class);
+                    restTemplate.postForObject(walletServiceUrl + "/funds/release", entity, Void.class);
                 } catch (Exception e) {
                     log.error("Failed to release funds after BUY order terminal status", e);
                 }
@@ -375,7 +404,7 @@ public class OrderController {
                     HttpHeaders headers = new HttpHeaders();
                     headers.set("X-INTERNAL-KEY", internalApiKey);
                     HttpEntity<ReserveQuantityRequest> entity = new HttpEntity<>(releaseQuantityRequest, headers);
-                    restTemplate.postForObject("http://portfolio-service:9004/portfolio/release", entity, Void.class);
+                    restTemplate.postForObject(portfolioServiceUrl + "/portfolio/release", entity, Void.class);
                 } catch (Exception e) {
                     log.error("Failed to release quantity after SELL order terminal status", e);
                 }

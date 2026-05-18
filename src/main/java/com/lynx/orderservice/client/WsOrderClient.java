@@ -20,6 +20,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -95,7 +96,22 @@ public class WsOrderClient extends TextWebSocketHandler {
         } else {
             log.warn("WebSocket session is not open. Attempting to reconnect...");
             connect();
-            // Optional: retry sending after a short delay
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(800);
+                    if (session != null && session.isOpen()) {
+                        String json = objectMapper.writeValueAsString(message);
+                        session.sendMessage(new TextMessage(json));
+                        log.info("Sent WebSocket message after reconnect: {}", json);
+                    } else {
+                        log.error("WebSocket session still not open after reconnect. Message dropped.");
+                    }
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                } catch (IOException e) {
+                    log.error("Failed to send WebSocket message after reconnect", e);
+                }
+            });
         }
     }
 
